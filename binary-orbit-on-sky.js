@@ -61,7 +61,7 @@ var guiVisible = true;
 var gui;
 
 var rasc, rdesc, xasc, xdesc, yasc, ydesc;
-var r, theta, M, f, fp, fpp;
+var r, theta, M, f, fp, fpp, xl, ym;
 var animateBody = false;
 
 var semimajor = 2;
@@ -182,6 +182,8 @@ var sketch = function (p5) {
         p5.fill(mptab10.get('orange'));
         p5.circle(semimajor * (1 - eccentricity) * SCALE, 0, 7);
 
+        ti = thiele_innes(p5, deg2rad(inclination), deg2rad(ascendingNode), deg2rad(argPerihelion));
+
         if (animateBody) {
             p5.push();
             p5.stroke(0);
@@ -190,8 +192,27 @@ var sketch = function (p5) {
             fp = (x) => (1 - eccentricity * p5.cos(x));
             fpp = (x) => (eccentricity * p5.sin(x));
             E = modifiedNewtonRaphson(f, fp, fpp, M);
-            p5.translate(SCALE * semimajor * (p5.cos(E) - eccentricity), SCALE * semiminor * p5.sin(E), 0);
+            xl = SCALE * semimajor * (p5.cos(E) - eccentricity);
+            ym = SCALE * semiminor * p5.sin(E);
+            p5.push();
+            p5.translate(xl, ym, 0);
+            p5.stroke(mptab10.get("blue"));
             p5.sphere(SCALE * 0.1);
+            p5.pop();
+            p5.push();
+            p5.stroke("black");
+            p5.rotateZ(-deg2rad(argPerihelion));
+            p5.rotateX(-deg2rad(inclination));
+            p5.rotateZ(-deg2rad(ascendingNode));
+            p5.applyMatrix(
+                ti[0], ti[1], 0, 0,
+                ti[2], ti[3], 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1
+            );
+            p5.translate(xl, ym, 0);
+            p5.sphere(SCALE * 0.1);
+            p5.pop();
             p5.pop();
         }
 
@@ -210,31 +231,12 @@ var sketch = function (p5) {
 
         p5.pop();
 
-        /*
         if (inclination > 0.0 && inclination < 180.0) {
-            var nu, rr, xx, yy;
-            ti = thiele_innes(p5, deg2rad(inclination), deg2rad(ascendingNode), deg2rad(argPerihelion));
             p5.push();
             p5.noFill();
             p5.stroke(0);
-            p5.beginShape();
-            for (k = 0; k <= 360; k++) {
-                nu = deg2rad(-argPerihelion + k);
-                rr = SCALE * semimajor * (1 - eccentricity * eccentricity) / (1 + eccentricity * p5.cos(nu));
-                xx = rr * (ti[0] * p5.cos(nu) + ti[2] * p5.sin(nu));
-                yy = rr * (ti[1] * p5.cos(nu) + ti[3] * p5.sin(nu));
-                p5.curveVertex(xx, yy, 0.0);
-            }
-            p5.endShape();
-        }*/
-
-        if (inclination > 0.0 && inclination < 180.0) {
-            ti = thiele_innes(p5, deg2rad(inclination), deg2rad(ascendingNode), deg2rad(argPerihelion));
-            p5.push();
-            p5.noFill();
-            p5.stroke(0);
-            //p5.translate(-semimajor * eccentricity * SCALE, 0, 0);
             p5.translate(-semimajor * eccentricity * SCALE * ti[0], -semimajor * eccentricity * SCALE * ti[1], 0);
+            // q = Al+Fm, p = Bl+Gm
             p5.applyMatrix(
                 ti[0], ti[1], 0, 0,
                 ti[2], ti[3], 0, 0,
