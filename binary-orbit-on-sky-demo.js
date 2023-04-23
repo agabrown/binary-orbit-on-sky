@@ -56,6 +56,8 @@ var explain;
 var showHelp = true;
 var helpVisible = true;
 var helpButton;
+var showOrientation = true;
+var orientationButton;
 
 var guiVisible = true;
 var gui;
@@ -63,6 +65,7 @@ var gui;
 var rasc, rdesc, xasc, xdesc, yasc, ydesc;
 var r, theta, M, f, fp, fpp, xl, ym;
 var animateBody = false;
+let myfont;
 
 var semimajor = 2;
 var eccentricity = 0.6;
@@ -70,13 +73,29 @@ var semiminor;
 var refPlaneRadius = semimajor * (1 + eccentricity);
 const SCALE = 100;
 const HELPSIZE = 600;
+const IMSIZE = 2 * SCALE * semimajor * (1 + eccentricity);
 
 var deg2rad;
+let neImg;
 
 var sketch = function (p5) {
 
     p5.preload = function () {
         explanationText = p5.loadStrings("explanation.html");
+        neImg = p5.createGraphics(IMSIZE, IMSIZE);
+        neImg.textSize(36);
+        neImg.background(127, 150);
+        neImg.fill(0);
+        neImg.push();
+        neImg.translate(IMSIZE - 0.1 * IMSIZE, 0.5 * IMSIZE - 36);
+        neImg.rotate(p5.PI / 2);
+        neImg.text("N", 0, 0);
+        neImg.pop();
+        neImg.push();
+        neImg.translate(0.52 * IMSIZE, 0.1 * IMSIZE);
+        neImg.rotate(p5.PI / 2);
+        neImg.text("E", 0, 0);
+        neImg.pop();
     }
 
     p5.setup = function () {
@@ -84,7 +103,7 @@ var sketch = function (p5) {
         p5.perspective();
         canvas.position(0, 0);
         gui = p5.createGui(this, 'Orbital elements');
-        gui.addGlobals('showHelp', 'animateBody', 'camRotY', 'camRotZ', 'inclination', 'ascendingNode', 'argPerihelion');
+        gui.addGlobals('showHelp', 'showOrientation', 'animateBody', 'camRotY', 'camRotZ', 'inclination', 'ascendingNode', 'argPerihelion');
         gui.setPosition(p5.width, paddingVertical);
 
         explain = p5.createDiv(p5.join(explanationText, " "));
@@ -121,10 +140,10 @@ var sketch = function (p5) {
 
         p5.push()
 
-        // l, m, n normal triad vector. With n towards the observer
+        // p, q, -r normal triad vector. With -r towards the observer
 
         /*
-         * Vector l (coincides with q from the normal triad) pointing north (increasing declination).
+         * Vector q pointing north (increasing declination).
          */
         p5.strokeWeight(1);
         p5.stroke(0);
@@ -136,7 +155,7 @@ var sketch = function (p5) {
         p5.pop();
 
         /*
-         * Vector m (coincides with p from the normal triad) pointing east (direction of increasing right ascension).
+         * Vector p pointing east (direction of increasing right ascension).
          */
         p5.line(0, 0, 0, 0, refPlaneRadius * SCALE * 0.8, 0);
         p5.push()
@@ -145,7 +164,7 @@ var sketch = function (p5) {
         p5.pop();
 
         /*
-         * Vector n (coincides with -r from the normal triad) pointing toward observer.
+         * Vector -r pointing toward observer.
          */
         p5.line(0, 0, 0, 0, 0, refPlaneRadius * SCALE * 0.7);
         p5.push()
@@ -245,12 +264,19 @@ var sketch = function (p5) {
             p5.pop();
         }
 
-        // Sky plane (p-q plane of normal triad).
-        // Draw this last so that the transparency works correctly (where the intention
-        // is to see the orbital ellipse through the plane).
+        /* Sky plane (p-q plane of normal triad).
+         * Draw this last so that the transparency works correctly (where the intention
+         * is to see the orbital ellipse through the plane).
+         */
+        p5.push();
         p5.noStroke();
         p5.fill(mptab10.get('grey')[0], mptab10.get('grey')[1], mptab10.get('grey')[2], 150);
-        p5.square(-SCALE * refPlaneRadius, -SCALE * refPlaneRadius, 2 * SCALE * refPlaneRadius);
+        if (showOrientation) {
+            p5.rotateX(p5.PI);
+            p5.texture(neImg);
+        }
+        p5.plane(2 * SCALE * refPlaneRadius, 2 * SCALE * refPlaneRadius, 50);
+        p5.pop();
 
         //showWorldAxes(p5, SCALE);
 
@@ -260,56 +286,6 @@ var sketch = function (p5) {
 }
 
 var myp5 = new p5(sketch);
-
-/*
- * Apply this transformation so that one can work in a righthanded Cartesian coordinate 
- * system, which is defined as follows for rotY=0 and rotZ=0:
- * - The x-axis points toward the viewer.
- * - The y-axis runs from left to right on the screen.
- * - The z-axis runs from bottom to top on the screen.
- *
- * The purpose of rotY and rotZ is to position the camera at anzimuth (with respect to
- * X) given by rotZ and a latitude (with respect to XY) indicated by rotY.
- *
- * The transformation takes care of placing things correctly in the 'device' (here
- * WEBGL coordinates).
- *
- * So typically you do the following:
- * p5.push();
- * rightHanded3DtoWEBGL(p5, rotY, rotZ);
- * ...
- * drawing instructions with coordinates now to be interpreted in the righthanded 
- * Cartesian coordinate system defined above.
- * ...
- * p5.pop();
- *
- * Parameters:
- * p5o - the p5 object
- * rotY - rotation angle around Y (sets the viewpointi latitude)
- * rotZ - rotation angle around Z (sets the viewpoint azimuth)
- */
-function rightHanded3DtoWEBGL(p5o, rotY, rotZ) {
-    p5o.applyMatrix(
-        0, 0, 1, 0,
-        1, 0, 0, 0,
-        0, -1, 0, 0,
-        0, 0, 0, 1
-    );
-    p5o.rotateY(rotY);
-    p5o.rotateZ(-rotZ);
-}
-
-function showWorldAxes(p5o, s) {
-    p5o.push();
-    p5o.strokeWeight(6);
-    p5o.stroke(mptab10.get('red'));
-    p5o.line(0, 0, 0, s, 0, 0);
-    p5o.stroke(mptab10.get('green'));
-    p5o.line(0, 0, 0, 0, s, 0);
-    p5o.stroke(mptab10.get('blue'));
-    p5o.line(0, 0, 0, 0, 0, s);
-    p5o.pop();
-}
 
 /*
  * Draw an ellipse with the focus at (0,0,0) and perihelion at (a(1-e), 0, 0).
